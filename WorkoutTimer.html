@@ -344,9 +344,9 @@ button:disabled { opacity: 0.3; pointer-events: none; }
       document.getElementById('recTime').className = 'rec-time ' + (s < 60 ? 'rec-red' : s < 120 ? 'rec-yellow' : 'rec-green');
       document.getElementById('exDot').className = 'dot ' + (s < 60 ? 'dot-red' : s < 120 ? 'dot-yellow' : 'dot-green');
       // beep ai minuti
-      if (s >= 60  && !_beepDone[60])  { beep(1); _beepDone[60]  = true; }
-      if (s >= 120 && !_beepDone[120]) { beep(2); _beepDone[120] = true; }
-      if (s >= 180 && !_beepDone[180]) { beep(3); _beepDone[180] = true; }
+      if (s >= 60  && !_beepDone[60])  { beep(1); vibra(1); _beepDone[60]  = true; }
+      if (s >= 120 && !_beepDone[120]) { beep(2); vibra(2); _beepDone[120] = true; }
+      if (s >= 180 && !_beepDone[180]) { beep(3); vibra(3); _beepDone[180] = true; }
     }, 500);
     setCentrale('recupero');
     renderLaps();
@@ -434,6 +434,16 @@ button:disabled { opacity: 0.3; pointer-events: none; }
         delay += 0.28;
       }
     } catch(e) {}
+  }
+
+  function vibra(times) {
+    if (!navigator.vibrate) return;
+    var pattern = [];
+    for (var i = 0; i < times; i++) {
+      if (i > 0) pattern.push(150); // pausa tra vibrazioni
+      pattern.push(200);             // durata vibrazione
+    }
+    navigator.vibrate(pattern);
   }
 
   function showSummary(totalMs) {
