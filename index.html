@@ -821,6 +821,72 @@
       min-width: 2.6em;
     }
 
+    /* Barra avanzamento esercizio */
+    .ex-progress {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px 10px;
+    }
+    .ex-progress-bar {
+      flex: 1;
+      height: 4px;
+      background: #1e2d3d;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .ex-progress-fill {
+      height: 100%;
+      background: #2ecc71;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+    .ex-progress-text {
+      font-size: 0.75em;
+      color: #666;
+      white-space: nowrap;
+      min-width: 90px;
+      text-align: right;
+    }
+
+    /* Timer recupero globale (sticky) */
+    #global-rest-timer {
+      display: none;
+      position: fixed;
+      bottom: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1a2535;
+      border: 1px solid #2a3a50;
+      border-radius: 50px;
+      padding: 10px 20px;
+      z-index: 9000;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+      min-width: 200px;
+      max-width: 90vw;
+    }
+    #global-rest-timer.visible { display: flex; }
+    .grt-label {
+      font-size: 0.78em;
+      color: #88aacc;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 130px;
+    }
+    .grt-time {
+      font-size: 1.1em;
+      font-weight: bold;
+      color: #4da6ff;
+      font-variant-numeric: tabular-nums;
+      min-width: 3.2em;
+      text-align: right;
+    }
+
     #print-header { display: none; }
 
     @media print {
@@ -1216,6 +1282,13 @@ body { padding-bottom: 68px !important; }
       id="dashWeekTabs"></div>
     <div class="session-tabs" id="dashSessionTabs"></div>
 
+    <!-- Timer recupero sempre visibile -->
+    <div id="global-rest-timer">
+      <div class="rt-dot rt-red" id="grt-dot"></div>
+      <span class="grt-label" id="grt-label">Recupero</span>
+      <span class="grt-time" id="grt-time">0:00</span>
+    </div>
+
     <div id="dashContent">
       <div class="start-msg">
         <p>Seleziona una settimana e una seduta</p>
@@ -1302,7 +1375,7 @@ body { padding-bottom: 68px !important; }
       '4': {
         A: [['squat', 'heavy'], ['vpull', 'heavy'], ['hinge', 'medium'], ['vpush', 'medium']],
         B: [['hpush', 'heavy'], ['hpull', 'heavy'], ['squat', 'light'], ['vpull', 'light']],
-        C: [['hinge', 'heavy'], ['vpush', 'heavy'], ['squat', 'medium'], ['vpull', 'medium'], ['hpush', 'light'], ['hpull', 'light']],
+        C: [['hinge', 'heavy'], ['vpush', 'heavy'], ['squat', 'medium'], ['vpull', 'medium']],
         D: [['hpush', 'medium'], ['hpull', 'medium'], ['hinge', 'light'], ['vpush', 'light']],
       }
     };
@@ -2579,6 +2652,7 @@ body { padding-bottom: 68px !important; }
           dashState = JSON.parse(e.target.result);
           if (!dashState.progress) dashState.progress = {};
           localStorage.setItem('active_dashboard', JSON.stringify(dashState));
+          dashWeek = 1; dashSession = null;
           openDashboard();
         } catch (err) {
           alert("Errore nel caricamento del file JSON.");
@@ -2586,6 +2660,25 @@ body { padding-bottom: 68px !important; }
       };
       reader.readAsText(file);
       event.target.value = '';
+    }
+
+    // Prima seduta non ancora completata (settimana -> seduta).
+    // Se sono tutte completate, ritorna l'ultima.
+    function nextSessionToDo() {
+      const p = dashState.prog;
+      const isRungs = p === 'rungs', isSSDT = p === 'ssdt', isIron = p === 'iron',
+            isRite = p === 'rite', isTriple = p === 'triple';
+      const totalWeeks = (isRungs || isSSDT) ? 8 : (isIron || isRite) ? 15 : isTriple ? 12 : 13;
+      const defs = isIron ? SESSION_DEFS_IRON[dashState.template] : SESSION_DEFS[dashState.template];
+      const sessions = defs ? Object.keys(defs) : [];
+      if (!sessions.length) return null;
+      const sc = dashState.sessionComplete || {};
+      for (let w = 1; w <= totalWeeks; w++) {
+        for (const s of sessions) {
+          if (!sc[`${w}_${s}`]) return { w, s };
+        }
+      }
+      return { w: totalWeeks, s: sessions[sessions.length - 1] };
     }
 
     function openDashboard() {
@@ -2603,8 +2696,8 @@ body { padding-bottom: 68px !important; }
       document.getElementById('dashSubtitle').textContent = dashState.template + ' sedute/settimana';
 
       if (!dashSession) {
-        const sessions = Object.keys(SESSION_DEFS[dashState.template]);
-        if (sessions.length) dashSession = sessions[0];
+        const nxt = nextSessionToDo();
+        if (nxt) { dashWeek = nxt.w; dashSession = nxt.s; }
       }
 
       renderDashboardTabs();
@@ -3309,10 +3402,6 @@ body { padding-bottom: 68px !important; }
         }
       } catch(e) {}
     }
-
-    // ============================================================
-    // I MIEI MASSIMALI (PRs)
-    // ============================================================
 
     // ============================================================
     // REST TIMER
@@ -3585,6 +3674,9 @@ body { padding-bottom: 68px !important; }
 <script>
 (function() {
 
+  if (window.__ironTimerInit) return;   // evita la doppia inizializzazione (script duplicato)
+  window.__ironTimerInit = true;
+
   var sessionStart = null, sessionInterval = null, sessionRunning = false, sessionOffset = 0;
   var exStart = null, exInterval = null, exRunning = false;
   var recStart = null, recInterval = null;
@@ -3613,6 +3705,14 @@ body { padding-bottom: 68px !important; }
   // SESSION
   document.getElementById('btnSession').addEventListener('click', function() {
     if (!sessionRunning) {
+      if (sessionStart === null) {
+        // nuova sessione da zero: pulisci esercizi e riepilogo precedenti
+        exercises = [];
+        document.getElementById('summaryCard').style.display = 'none';
+        document.getElementById('sessionTime').textContent = '0:00:00';
+        document.getElementById('exTime').textContent = '0:00';
+        document.getElementById('lapsList').innerHTML = '<div class="empty-msg">Avvia l\'esercizio e segna le serie</div>';
+      }
       sessionStart = Date.now() - sessionOffset;
       sessionRunning = true;
       sessionInterval = setInterval(function() {
@@ -3631,22 +3731,41 @@ body { padding-bottom: 68px !important; }
     }
   });
 
+  function resetSessionUI() {
+    clearInterval(sessionInterval);
+    clearInterval(exInterval);
+    clearInterval(recInterval);
+    sessionRunning = false; exRunning = false;
+    sessionStart = null; sessionOffset = 0;
+    exStart = null; recStart = null; lapStart = null;
+    serieCount = 0; currentLaps = [];
+    var bS = document.getElementById('btnSession');
+    bS.disabled = false;
+    bS.textContent = 'Inizia sessione';
+    bS.className = 'blue';
+    document.getElementById('btnEndSession').classList.add('hidden');
+    var bEx = document.getElementById('btnEx');
+    bEx.disabled = true;
+    bEx.textContent = 'Avvia esercizio';
+    bEx.className = 'blue';
+    document.getElementById('btnCentrale').classList.add('hidden');
+    document.getElementById('btnFineEx').classList.add('hidden');
+    document.getElementById('recBox').classList.remove('visible');
+    document.getElementById('exDot').className = 'dot dot-off';
+    document.getElementById('exTime').textContent = '0:00';
+    document.getElementById('sessionTime').textContent = '0:00:00';
+    document.getElementById('lapsList').innerHTML = '<div class="empty-msg">Avvia l\'esercizio e segna le serie</div>';
+  }
+
   document.getElementById('btnEndSession').addEventListener('click', function() {
     if (!confirm('Terminare la sessione?')) return;
     clearInterval(sessionInterval);
     clearInterval(exInterval);
     clearInterval(recInterval);
-    var totalMs = Date.now() - sessionStart;
+    var totalMs = sessionStart ? Date.now() - sessionStart : 0;
     if (exRunning) saveEx();
-    sessionRunning = false; exRunning = false;
-    document.getElementById('btnSession').disabled = true;
-    document.getElementById('btnEndSession').classList.add('hidden');
-    document.getElementById('btnEx').disabled = true;
-    document.getElementById('btnCentrale').classList.add('hidden');
-    document.getElementById('btnFineEx').classList.add('hidden');
-    document.getElementById('recBox').classList.remove('visible');
-    document.getElementById('sessionTime').textContent = fmtSession(totalMs);
-    showSummary(totalMs);
+    showSummary(totalMs);        // mostra il riepilogo della sessione appena conclusa
+    resetSessionUI();            // poi azzera tutto e riporta a "Inizia sessione"
   });
 
   // ESERCIZIO
@@ -3855,7 +3974,7 @@ body { padding-bottom: 68px !important; }
 
   function showSummary(totalMs) {
     var card = document.getElementById('summaryCard');
-    card.style.display = '';
+    card.style.display = 'block';
     var html = '<div class="sum-row"><span>Durata totale</span><span class="sum-val">' + fmtSession(totalMs) + '</span></div>';
     html += '<div class="sum-row"><span>Esercizi</span><span class="sum-val">' + exercises.length + '</span></div>';
     for (var i = 0; i < exercises.length; i++) {
@@ -3975,7 +4094,7 @@ body { padding-bottom: 68px !important; }
       '4': {
         A: [['squat', 'heavy'], ['vpull', 'heavy'], ['hinge', 'medium'], ['vpush', 'medium']],
         B: [['hpush', 'heavy'], ['hpull', 'heavy'], ['squat', 'light'], ['vpull', 'light']],
-        C: [['hinge', 'heavy'], ['vpush', 'heavy'], ['squat', 'medium'], ['vpull', 'medium'], ['hpush', 'light'], ['hpull', 'light']],
+        C: [['hinge', 'heavy'], ['vpush', 'heavy'], ['squat', 'medium'], ['vpull', 'medium']],
         D: [['hpush', 'medium'], ['hpull', 'medium'], ['hinge', 'light'], ['vpush', 'light']],
       }
     };
@@ -5877,6 +5996,8 @@ body { padding-bottom: 68px !important; }
       const btn = block.querySelector('.check-all-btn');
       if (allDone) btn.classList.add('done'); else btn.classList.remove('done');
 
+      _updateExProgress(block);
+
       // Timer recupero
       if (isDone) {
         _rtStart(w, s, ex);
@@ -5896,6 +6017,8 @@ body { padding-bottom: 68px !important; }
         if (isDone) b.classList.add('done'); else b.classList.remove('done');
         dashState.progress[`${w}_${s}_${ex}_${idx}`] = isDone;
       });
+      _updateExProgress(block);
+      if (isDone) _rtStart(w, s, ex); else _rtStop(w, s, ex);
       updateSessionComplete(w, s);
     }
 
@@ -5990,13 +6113,30 @@ body { padding-bottom: 68px !important; }
     // ============================================================
     // REST TIMER
     // ============================================================
-    const _rtState = {};   // exKey -> { startMs, intervalId }
+    const _rtState = {};   // exKey -> { startMs, intervalId, name }
+    let _rtLastKey = null;
 
     function _rtKey(w, s, ex) { return w + '_' + s + '_' + ex; }
 
     function _rtEl(w, s, ex) {
-      // Cerca il timer nell'ex-header corrispondente
       return document.getElementById('rt_' + _rtKey(w, s, ex));
+    }
+
+    function _rtUpdateGlobal() {
+      const gTimer = document.getElementById('global-rest-timer');
+      if (!gTimer) return;
+      if (!_rtLastKey || !_rtState[_rtLastKey]) {
+        gTimer.classList.remove('visible');
+        return;
+      }
+      const state = _rtState[_rtLastKey];
+      const sec = Math.floor((Date.now() - state.startMs) / 1000);
+      const mm = Math.floor(sec / 60);
+      const ss = String(sec % 60).padStart(2, '0');
+      document.getElementById('grt-time').textContent = mm + ':' + ss;
+      document.getElementById('grt-label').textContent = state.name || 'Recupero';
+      document.getElementById('grt-dot').className = 'rt-dot ' + (sec < 60 ? 'rt-red' : sec < 120 ? 'rt-yellow' : 'rt-green');
+      gTimer.classList.add('visible');
     }
 
     function _rtStart(w, s, ex) {
@@ -6004,9 +6144,19 @@ body { padding-bottom: 68px !important; }
       if (_rtState[key]) {
         clearInterval(_rtState[key].intervalId);
       }
+      const badge = document.querySelector(`.series-badge[data-w="${w}"][data-s="${s}"][data-ex="${ex}"]`);
+      let exName = 'Recupero';
+      if (badge) {
+        const block = badge.closest('.exercise-block');
+        if (block) {
+          const nameEl = block.querySelector('.ex-name');
+          if (nameEl) exName = nameEl.textContent.trim();
+        }
+      }
       const startMs = Date.now();
       const intervalId = setInterval(() => _rtTick(w, s, ex, startMs), 500);
-      _rtState[key] = { startMs, intervalId };
+      _rtState[key] = { startMs, intervalId, name: exName };
+      _rtLastKey = key;
       _rtTick(w, s, ex, startMs);
     }
 
@@ -6018,6 +6168,11 @@ body { padding-bottom: 68px !important; }
       }
       const el = _rtEl(w, s, ex);
       if (el) el.classList.remove('visible');
+      if (_rtLastKey === key) {
+        const remaining = Object.keys(_rtState);
+        _rtLastKey = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+      }
+      _rtUpdateGlobal();
     }
 
     function _rtTick(w, s, ex, startMs) {
@@ -6031,10 +6186,38 @@ body { padding-bottom: 68px !important; }
       time.textContent = mm + ':' + ss;
       dot.className = 'rt-dot ' + (sec < 60 ? 'rt-red' : sec < 120 ? 'rt-yellow' : 'rt-green');
       el.classList.add('visible');
+      if (_rtKey(w, s, ex) === _rtLastKey) _rtUpdateGlobal();
     }
 
-    // Inietta i placeholder timer in ogni ex-header dopo il render
-    // Usa data-attributes sui badge invece di parsare onclick
+    function _updateExProgress(block) {
+      const progressEl = block.querySelector('.ex-progress');
+      if (!progressEl) return;
+      const badges = block.querySelectorAll('.series-badge');
+      const total = badges.length;
+      if (total === 0) return;
+      const done = Array.from(badges).filter(b => b.classList.contains('done')).length;
+      const pct = Math.round(done / total * 100);
+      progressEl.querySelector('.ex-progress-fill').style.width = pct + '%';
+      const txt = done === total
+        ? done + ' / ' + total + ' serie · Completato!'
+        : done + ' / ' + total + ' serie' + (done > 0 ? ' · ' + pct + '%' : '');
+      progressEl.querySelector('.ex-progress-text').textContent = txt;
+      progressEl.querySelector('.ex-progress-fill').style.background = done === total ? '#27ae60' : '#2ecc71';
+    }
+
+    function injectExProgress() {
+      document.querySelectorAll('.exercise-block').forEach(function(block) {
+        if (block.querySelector('.ex-progress')) return;
+        var grid = block.querySelector('.series-grid');
+        if (!grid) return;
+        var progressDiv = document.createElement('div');
+        progressDiv.className = 'ex-progress';
+        progressDiv.innerHTML = '<div class="ex-progress-bar"><div class="ex-progress-fill"></div></div><span class="ex-progress-text"></span>';
+        grid.parentNode.insertBefore(progressDiv, grid.nextSibling);
+        _updateExProgress(block);
+      });
+    }
+
     function injectRestTimers() {
       document.querySelectorAll('.exercise-block').forEach(function(block) {
         var header = block.querySelector('.ex-header');
@@ -6056,8 +6239,8 @@ body { padding-bottom: 68px !important; }
           header.appendChild(timerDiv);
         }
       });
+      injectExProgress();
     }
-
     const PRS_KEY = 'cruiser_prs';
     let userPRs = {};
 
@@ -6223,6 +6406,9 @@ body { padding-bottom: 68px !important; }
 
 (function() {
 
+  if (window.__ironTimerInit) return;   // evita la doppia inizializzazione (script duplicato)
+  window.__ironTimerInit = true;
+
   var sessionStart = null, sessionInterval = null, sessionRunning = false, sessionOffset = 0;
   var exStart = null, exInterval = null, exRunning = false;
   var recStart = null, recInterval = null;
@@ -6251,6 +6437,14 @@ body { padding-bottom: 68px !important; }
   // SESSION
   document.getElementById('btnSession').addEventListener('click', function() {
     if (!sessionRunning) {
+      if (sessionStart === null) {
+        // nuova sessione da zero: pulisci esercizi e riepilogo precedenti
+        exercises = [];
+        document.getElementById('summaryCard').style.display = 'none';
+        document.getElementById('sessionTime').textContent = '0:00:00';
+        document.getElementById('exTime').textContent = '0:00';
+        document.getElementById('lapsList').innerHTML = '<div class="empty-msg">Avvia l\'esercizio e segna le serie</div>';
+      }
       sessionStart = Date.now() - sessionOffset;
       sessionRunning = true;
       sessionInterval = setInterval(function() {
@@ -6269,22 +6463,41 @@ body { padding-bottom: 68px !important; }
     }
   });
 
+  function resetSessionUI() {
+    clearInterval(sessionInterval);
+    clearInterval(exInterval);
+    clearInterval(recInterval);
+    sessionRunning = false; exRunning = false;
+    sessionStart = null; sessionOffset = 0;
+    exStart = null; recStart = null; lapStart = null;
+    serieCount = 0; currentLaps = [];
+    var bS = document.getElementById('btnSession');
+    bS.disabled = false;
+    bS.textContent = 'Inizia sessione';
+    bS.className = 'blue';
+    document.getElementById('btnEndSession').classList.add('hidden');
+    var bEx = document.getElementById('btnEx');
+    bEx.disabled = true;
+    bEx.textContent = 'Avvia esercizio';
+    bEx.className = 'blue';
+    document.getElementById('btnCentrale').classList.add('hidden');
+    document.getElementById('btnFineEx').classList.add('hidden');
+    document.getElementById('recBox').classList.remove('visible');
+    document.getElementById('exDot').className = 'dot dot-off';
+    document.getElementById('exTime').textContent = '0:00';
+    document.getElementById('sessionTime').textContent = '0:00:00';
+    document.getElementById('lapsList').innerHTML = '<div class="empty-msg">Avvia l\'esercizio e segna le serie</div>';
+  }
+
   document.getElementById('btnEndSession').addEventListener('click', function() {
     if (!confirm('Terminare la sessione?')) return;
     clearInterval(sessionInterval);
     clearInterval(exInterval);
     clearInterval(recInterval);
-    var totalMs = Date.now() - sessionStart;
+    var totalMs = sessionStart ? Date.now() - sessionStart : 0;
     if (exRunning) saveEx();
-    sessionRunning = false; exRunning = false;
-    document.getElementById('btnSession').disabled = true;
-    document.getElementById('btnEndSession').classList.add('hidden');
-    document.getElementById('btnEx').disabled = true;
-    document.getElementById('btnCentrale').classList.add('hidden');
-    document.getElementById('btnFineEx').classList.add('hidden');
-    document.getElementById('recBox').classList.remove('visible');
-    document.getElementById('sessionTime').textContent = fmtSession(totalMs);
-    showSummary(totalMs);
+    showSummary(totalMs);        // mostra il riepilogo della sessione appena conclusa
+    resetSessionUI();            // poi azzera tutto e riporta a "Inizia sessione"
   });
 
   // ESERCIZIO
@@ -6493,7 +6706,7 @@ body { padding-bottom: 68px !important; }
 
   function showSummary(totalMs) {
     var card = document.getElementById('summaryCard');
-    card.style.display = '';
+    card.style.display = 'block';
     var html = '<div class="sum-row"><span>Durata totale</span><span class="sum-val">' + fmtSession(totalMs) + '</span></div>';
     html += '<div class="sum-row"><span>Esercizi</span><span class="sum-val">' + exercises.length + '</span></div>';
     for (var i = 0; i < exercises.length; i++) {
@@ -6528,6 +6741,128 @@ function switchTab(tab) {
   document.getElementById('tab-timer').className = 'tab-btn' + (tab === 'timer' ? ' active' : '');
 }
 
+</script>
+
+<!-- ============================================================ -->
+<!-- AVANZAMENTO ESERCIZIO + TIMER RECUPERO GLOBALE (modulo indipendente) -->
+<!-- ============================================================ -->
+<script>
+(function () {
+  'use strict';
+
+  var observer = null;
+  var dashEl = null;
+
+  // ---------- BARRA DI AVANZAMENTO ----------
+  function ensureProgressBar(block) {
+    if (block.querySelector('.ex-progress')) return;
+    var grid = block.querySelector('.series-grid');
+    if (!grid) return;
+    var div = document.createElement('div');
+    div.className = 'ex-progress';
+    div.innerHTML = '<div class="ex-progress-bar"><div class="ex-progress-fill"></div></div><span class="ex-progress-text"></span>';
+    grid.parentNode.insertBefore(div, grid.nextSibling);
+  }
+
+  function updateProgressBar(block) {
+    var bar = block.querySelector('.ex-progress');
+    if (!bar) return;
+    var badges = block.querySelectorAll('.series-badge');
+    var total = badges.length;
+    if (total === 0) { bar.style.display = 'none'; return; }
+    bar.style.display = 'flex';
+    var done = 0;
+    badges.forEach(function (b) { if (b.classList.contains('done')) done++; });
+    var pct = Math.round(done / total * 100);
+    var fill = bar.querySelector('.ex-progress-fill');
+    fill.style.width = pct + '%';
+    fill.style.background = (done === total) ? '#27ae60' : '#2ecc71';
+    var newTxt = (done === total)
+      ? done + ' / ' + total + ' serie · Completato!'
+      : done + ' / ' + total + ' serie' + (done > 0 ? ' · ' + pct + '%' : '');
+    var txtEl = bar.querySelector('.ex-progress-text');
+    if (txtEl.textContent !== newTxt) txtEl.textContent = newTxt;
+  }
+
+  function refreshAll() {
+    try {
+      var blocks = document.querySelectorAll('.exercise-block');
+      blocks.forEach(function (block) {
+        ensureProgressBar(block);
+        updateProgressBar(block);
+      });
+    } catch (e) { /* non bloccare mai la pagina */ }
+  }
+
+  // ---------- SPECCHIO DEL TIMER RECUPERO ----------
+  // Non è un timer separato: rispecchia il timer di recupero del tab "Timer"
+  // (#recBox / #recTime) dentro la dashboard, così lo vedi in entrambi i posti.
+  function mirrorRecTimer() {
+    try {
+      var box = document.getElementById('global-rest-timer');
+      if (!box) return;
+      var recBox = document.getElementById('recBox');
+      var recTime = document.getElementById('recTime');
+      var active = recBox && recTime && recBox.classList.contains('visible');
+      if (!active) { box.classList.remove('visible'); return; }
+      document.getElementById('grt-time').textContent = recTime.textContent;
+      document.getElementById('grt-label').textContent = 'Recupero in corso';
+      var c = recTime.className || '';
+      var color = c.indexOf('rec-green') >= 0 ? 'rt-green'
+                : c.indexOf('rec-yellow') >= 0 ? 'rt-yellow'
+                : 'rt-red';
+      document.getElementById('grt-dot').className = 'rt-dot ' + color;
+      box.classList.add('visible');
+    } catch (e) {}
+  }
+
+  // ---------- DELEGAZIONE EVENTI: aggiorna subito la barra ----------
+  // Gira DOPO l'handler inline (toggleDashProgress/toggleDashAll) grazie a setTimeout 0.
+  document.addEventListener('click', function (evt) {
+    try {
+      var target = evt.target;
+      if (!target || !target.closest) return;
+      var hit = target.closest('.series-badge') || target.closest('.check-all-btn');
+      if (!hit) return;
+      var block = hit.closest('.exercise-block');
+      if (!block) return;
+      setTimeout(function () {
+        try { ensureProgressBar(block); updateProgressBar(block); } catch (e) {}
+      }, 0);
+    } catch (e) {}
+  }, true);
+
+  // ---------- OSSERVA I RE-RENDER DELLA DASHBOARD ----------
+  // Importante: osservo solo i figli DIRETTI di #dashContent (il render fa
+  // container.innerHTML = ...), e mi disconnetto mentre inietto le barre per
+  // non innescare un loop con le mie stesse modifiche.
+  function onMutations() {
+    if (observer) observer.disconnect();
+    refreshAll();
+    if (observer && dashEl) observer.observe(dashEl, { childList: true });
+  }
+
+  function startObserver() {
+    try {
+      dashEl = document.getElementById('dashContent');
+      if (!dashEl) { setTimeout(startObserver, 400); return; }
+      refreshAll();
+      observer = new MutationObserver(onMutations);
+      observer.observe(dashEl, { childList: true });
+      // rete di sicurezza: aggiorna le barre periodicamente
+      setInterval(refreshAll, 1500);
+      // specchio del timer di recupero del tab Timer
+      setInterval(mirrorRecTimer, 250);
+      mirrorRecTimer();
+    } catch (e) {}
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startObserver);
+  } else {
+    startObserver();
+  }
+})();
 </script>
 </body>
 </html>
