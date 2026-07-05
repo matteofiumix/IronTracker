@@ -867,6 +867,7 @@
       box-shadow: 0 4px 20px rgba(0,0,0,0.6);
       min-width: 200px;
       max-width: 90vw;
+      cursor: pointer;
     }
     #global-rest-timer.visible { display: flex; }
     .grt-label {
@@ -1015,6 +1016,24 @@ body {
 .dot-red    { background: #e74c3c; box-shadow: 0 0 6px #e74c3c88; }
 .dot-yellow { background: #f1c40f; box-shadow: 0 0 6px #f1c40f88; }
 .dot-green  { background: #2ecc71; box-shadow: 0 0 6px #2ecc7188; }
+
+.serie-box {
+  display: none;
+  align-items: baseline;
+  gap: 10px;
+  margin: -4px 0 14px;
+}
+.serie-box.visible { display: flex; }
+.serie-label { font-size: 11px; color: #556; text-transform: uppercase; letter-spacing: 0.08em; }
+.serie-time {
+  font-size: 24px;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  color: #4da6ff;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+.serie-time.frozen { color: #667; }
 
 button {
   display: block;
@@ -1769,15 +1788,16 @@ body { padding-bottom: 68px !important; }
     const TAB1 = { 85: [3, 4, 4, 5, 6, 7, 7, 8, 9, 10, 10], 75: [4, 6, 7, 8, 9, 11, 12, 13, 14, 16, 17], 65: [6, 8, 9, 11, 13, 15, 16, 18, 20, 22, 23] };
     const TAB2 = { 4: [1, 2, 3], 5: [2, 3, 3], 6: [2, 3, 4], 7: [2, 4, 5], 8: [3, 4, 5], 9: [3, 5, 6], 10: [3, 5, 7], 11: [4, 6, 7], 12: [4, 6, 8], 13: [4, 7, 9], 14: [5, 7, 9], 15: [5, 8, 10] };
     const VOL = { 1: [6, 24, 30], 2: [9, 35, 44], 3: [9, 35, 44], 4: [11, 45, 56], 5: [11, 45, 56], 6: [14, 56, 70] };
+    const CRUISER_COL = { 1: 0, 2: 1, 3: 1, 4: 2, 5: 2, 6: 3 };
     const VOL_DELOAD = [3, 12, 15];
 
     const BATTLESHIP_VOL = {
-      1: { 1: [3, 27, 30], 2: [2, 42, 44], 3: [2, 42, 44], 4: [0, 56, 56], 5: [0, 56, 56], 6: [0, 70, 70] },
-      2: { 1: [6, 24, 30], 2: [5, 39, 44], 3: [5, 39, 44], 4: [3, 53, 56], 5: [3, 53, 56], 6: [1, 69, 70] },
-      3: { 1: [6, 24, 30], 2: [5, 39, 44], 3: [5, 39, 44], 4: [3, 53, 56], 5: [3, 53, 56], 6: [1, 69, 70] },
-      4: { 1: [8, 22, 30], 2: [7, 37, 44], 3: [7, 37, 44], 4: [4, 52, 56], 5: [4, 52, 56], 6: [4, 66, 70] },
-      5: { 1: [8, 22, 30], 2: [7, 37, 44], 3: [7, 37, 44], 4: [4, 52, 56], 5: [4, 52, 56], 6: [4, 66, 70] },
-      6: { 1: [11, 19, 30], 2: [10, 34, 44], 3: [10, 34, 44], 4: [8, 48, 56], 5: [8, 48, 56], 6: [7, 63, 70] }
+      1: { 1: [6, 21, 33], 2: [6, 34, 48], 3: [6, 34, 48], 4: [6, 44, 62], 5: [6, 44, 62], 6: [6, 57, 77] },
+      2: { 1: [9, 18, 33], 2: [9, 31, 48], 3: [9, 31, 48], 4: [9, 41, 62], 5: [9, 41, 62], 6: [9, 54, 77] },
+      3: { 1: [9, 18, 33], 2: [9, 31, 48], 3: [9, 31, 48], 4: [9, 41, 62], 5: [9, 41, 62], 6: [9, 54, 77] },
+      4: { 1: [11, 16, 33], 2: [11, 29, 48], 3: [11, 29, 48], 4: [11, 39, 62], 5: [11, 39, 62], 6: [11, 52, 77] },
+      5: { 1: [11, 16, 33], 2: [11, 29, 48], 3: [11, 29, 48], 4: [11, 39, 62], 5: [11, 39, 62], 6: [11, 52, 77] },
+      6: { 1: [14, 13, 33], 2: [14, 26, 48], 3: [14, 26, 48], 4: [14, 36, 62], 5: [14, 36, 62], 6: [14, 49, 77] }
     };
 
     function getLadder(rm) { return TAB2[Math.min(Math.max(rm, 4), 15)]; }
@@ -2047,10 +2067,14 @@ body { padding-bottom: 68px !important; }
     // ============================================================
     // GENERA EXCEL
     // ============================================================
-    function genCycle(prevLast) {
-      const seq = [1, 2, 3, 4, 5, 6];
-      for (let i = seq.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[seq[i], seq[j]] = [seq[j], seq[i]]; }
-      while (prevLast !== null && seq[0] === prevLast) { for (let i = seq.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[seq[i], seq[j]] = [seq[j], seq[i]]; } }
+    // Un dado a settimana, mai la stessa colonna (60/88/112/140) due settimane di fila.
+    function genDiceNoRepeatCol(weeks) {
+      const seq = [];
+      for (let w = 0; w < weeks; w++) {
+        let d;
+        do { d = 1 + Math.floor(Math.random() * 6); } while (w > 0 && CRUISER_COL[d] === CRUISER_COL[seq[w - 1]]);
+        seq.push(d);
+      }
       return seq;
     }
 
@@ -2067,10 +2091,13 @@ body { padding-bottom: 68px !important; }
       const tmpl = document.getElementById('templateSelect').value;
       const isBS = config.prog === 'battleship';
       const sessionKeys = Object.keys(SESSION_DEFS[tmpl]);
-      const c1 = genCycle(null), c2 = genCycle(c1[5]);
-      const diceSeq1 = [...c1, ...c2];
-      let diceSeq2 = null;
-      if (isBS) { const c3 = genCycle(null), c4 = genCycle(c3[5]); diceSeq2 = [...c3, ...c4]; }
+      let diceSeq1, diceSeq2 = null;
+      if (isBS) {
+        diceSeq1 = genDiceNoRepeatCol(12);
+        diceSeq2 = genDiceNoRepeatCol(12);
+      } else {
+        diceSeq1 = genDiceNoRepeatCol(12);
+      }
 
       // JSON INIT
       dashState = {
@@ -2798,13 +2825,17 @@ body { padding-bottom: 68px !important; }
       const volMap = { heavy: volArr[0], medium: volArr[1], light: volArr[2] };
       const intMap = { heavy: { cls: 'int-h', lbl: 'Heavy' }, medium: { cls: 'int-m', lbl: 'Medium' }, light: { cls: 'int-l', lbl: 'Light' } };
       const defs = SESSION_DEFS[dashState.template][dashSession];
+      const perLift = !isDeload && !isBS && dashState.diceBySchema;
 
-      let html = `<div style="text-align:center; margin-bottom:16px; color:#88aacc; font-size:0.95em;">Dado: <b style="color:#ff9944">${diceStr}</b> | H: <b>${volArr[0]}</b> - M: <b>${volArr[1]}</b> - L: <b>${volArr[2]}</b> rip</div>`;
+      let html = perLift
+        ? `<div style="text-align:center; margin-bottom:16px; color:#88aacc; font-size:0.95em;">Dado: <b style="color:#ff9944">per alzata</b> (volume diverso per esercizio)</div>`
+        : `<div style="text-align:center; margin-bottom:16px; color:#88aacc; font-size:0.95em;">Dado: <b style="color:#ff9944">${diceStr}</b> | H: <b>${volArr[0]}</b> - M: <b>${volArr[1]}</b> - L: <b>${volArr[2]}</b> rip</div>`;
 
       defs.forEach(([s, i], exIndex) => {
         const exConf = dashState.config[s];
         const { name, kg, rm } = getExInfo(exConf, i);
-        const ldr = getLadder(rm); const target = volMap[i];
+        const exVol = (perLift && dashState.diceBySchema[s]) ? VOL[dashState.diceBySchema[s][dashWeek - 1]] : volArr;
+        const ldr = getLadder(rm); const target = exVol[{ heavy: 0, medium: 1, light: 2 }[i]];
         const series = buildSeries(ldr, target); const total = series.reduce((a, b) => a + b, 0);
         const deloadTag = isDeload ? ' <span style="color:#88dd99;font-size:0.75em">[scarico]</span>' : '';
 
@@ -2823,7 +2854,7 @@ body { padding-bottom: 68px !important; }
         const savedNote = (dashState.notes && dashState.notes[noteKey]) ? dashState.notes[noteKey] : '';
         const noteInput = `<input type="text" class="dash-note-input" placeholder="Aggiungi note (es. 'oggi 5kg in meno', 'sentito pesante'...)" value="${savedNote}" onchange="saveDashNote(${dashWeek},'${dashSession}',${exIndex},this.value)">`;
 
-        html += `<div class="exercise-block"><div class="ex-header"><div><div class="ex-name">${name}${deloadTag}</div><div class="ex-meta">${kg} kg - Ladder: ${ldr.join(' - ')} - Target: ${target} rip</div></div><div style="display:flex; gap:8px; align-items:center;">${allDoneBtn}<span class="ex-intensity ${intMap[i].cls}">${intMap[i].lbl}</span></div></div><div class="series-grid">${badges}<div class="series-total">Totale: <span>${total}</span></div></div>${noteInput}</div>`;
+        html += `<div class="exercise-block"><div class="ex-header"><div><div class="ex-name">${name}${deloadTag}</div><div class="ex-meta">${kg} kg - Ladder: ${ldr.join(' - ')} - Target: ${target} rip${perLift ? ' <span style="color:#ff9944">(dado ' + ((dashState.diceBySchema[s] || [])[dashWeek - 1] || '?') + ')</span>' : ''}</div></div><div style="display:flex; gap:8px; align-items:center;">${allDoneBtn}<span class="ex-intensity ${intMap[i].cls}">${intMap[i].lbl}</span></div></div><div class="series-grid">${badges}<div class="series-total">Totale: <span>${total}</span></div></div>${noteInput}</div>`;
       });
 
       container.innerHTML = html;
@@ -3213,6 +3244,7 @@ body { padding-bottom: 68px !important; }
               let volArr;
               if (isDeload) volArr = VOL_DELOAD;
               else if (dashState.prog === 'battleship') volArr = BATTLESHIP_VOL[dashState.diceSeq1[w-1]][dashState.diceSeq2[w-1]];
+              else if (dashState.diceBySchema && dashState.diceBySchema[s]) volArr = VOL[dashState.diceBySchema[s][w-1]];
               else volArr = VOL[dashState.diceSeq1[w-1]];
               const volMap = { heavy: volArr[0], medium: volArr[1], light: volArr[2] };
               const exConf = dashState.config[s];
@@ -3654,6 +3686,10 @@ body { padding-bottom: 68px !important; }
     <div class="dot dot-off" id="exDot"></div>
     <div class="ex-time" id="exTime">0:00</div>
   </div>
+  <div class="serie-box" id="serieBox">
+    <span class="serie-label">Serie in corso</span>
+    <span class="serie-time" id="serieTime">0:00</span>
+  </div>
   <button class="blue" id="btnEx" disabled>Avvia esercizio</button>
   <button class="green hidden" id="btnCentrale">Fine serie</button>
   <button class="red hidden" id="btnFineEx">Fine esercizio</button>
@@ -3680,6 +3716,7 @@ body { padding-bottom: 68px !important; }
   var sessionStart = null, sessionInterval = null, sessionRunning = false, sessionOffset = 0;
   var exStart = null, exInterval = null, exRunning = false;
   var recStart = null, recInterval = null;
+  var serieStart = null, serieInterval = null;
   var lapStart = null;
   var currentLaps = [];
   var exercises = [];
@@ -3735,9 +3772,10 @@ body { padding-bottom: 68px !important; }
     clearInterval(sessionInterval);
     clearInterval(exInterval);
     clearInterval(recInterval);
+    clearInterval(serieInterval);
     sessionRunning = false; exRunning = false;
     sessionStart = null; sessionOffset = 0;
-    exStart = null; recStart = null; lapStart = null;
+    exStart = null; recStart = null; lapStart = null; serieStart = null;
     serieCount = 0; currentLaps = [];
     var bS = document.getElementById('btnSession');
     bS.disabled = false;
@@ -3753,6 +3791,9 @@ body { padding-bottom: 68px !important; }
     document.getElementById('recBox').classList.remove('visible');
     document.getElementById('exDot').className = 'dot dot-off';
     document.getElementById('exTime').textContent = '0:00';
+    document.getElementById('serieBox').classList.remove('visible');
+    document.getElementById('serieTime').textContent = '0:00';
+    document.getElementById('serieTime').className = 'serie-time';
     document.getElementById('sessionTime').textContent = '0:00:00';
     document.getElementById('lapsList').innerHTML = '<div class="empty-msg">Avvia l\'esercizio e segna le serie</div>';
   }
@@ -3797,6 +3838,7 @@ body { padding-bottom: 68px !important; }
     document.getElementById('btnFineEx').classList.remove('hidden');
     setCentrale('serie');
     renderLaps();
+    startSerie();
     exInterval = setInterval(function() {
       document.getElementById('exTime').textContent = fmtMin(Date.now() - exStart);
     }, 500);
@@ -3818,6 +3860,7 @@ body { padding-bottom: 68px !important; }
     clearInterval(recInterval);
     saveEx();
     exRunning = false;
+    hideSerie();
     document.getElementById('recBox').classList.remove('visible');
     document.getElementById('btnEx').textContent = 'Avvia esercizio';
     document.getElementById('btnEx').className = 'blue';
@@ -3850,11 +3893,44 @@ body { padding-bottom: 68px !important; }
     }
   });
 
+  function startSerie() {
+    serieStart = Date.now();
+    clearInterval(serieInterval);
+    var t = document.getElementById('serieTime');
+    t.textContent = '0:00';
+    t.className = 'serie-time';
+    document.getElementById('serieBox').classList.add('visible');
+    serieInterval = setInterval(function() {
+      document.getElementById('serieTime').textContent = fmtMin(Date.now() - serieStart);
+    }, 500);
+  }
+
+  function stopSerie() {
+    clearInterval(serieInterval);
+    if (serieStart) {
+      document.getElementById('serieTime').textContent = fmtMin(Date.now() - serieStart);
+    }
+    document.getElementById('serieTime').className = 'serie-time frozen';
+    serieStart = null;
+  }
+
+  function hideSerie() {
+    clearInterval(serieInterval);
+    serieStart = null;
+    var box = document.getElementById('serieBox');
+    box.classList.remove('visible');
+    var t = document.getElementById('serieTime');
+    t.textContent = '0:00';
+    t.className = 'serie-time';
+  }
+
   function fineSerie() {
     if (!exRunning) return;
     unlockAudio();
+    var serieMs = serieStart ? Date.now() - serieStart : 0;
+    stopSerie();
     serieCount++;
-    currentLaps.push({ n: serieCount, ms: 0, color: null });
+    currentLaps.push({ n: serieCount, serieMs: serieMs, ms: 0, color: null });
     lapStart = Date.now();
     // avvia timer recupero
     recStart = Date.now();
@@ -3892,6 +3968,7 @@ body { padding-bottom: 68px !important; }
     document.getElementById('recBox').classList.remove('visible');
     document.getElementById('exDot').className = 'dot dot-off';
     setCentrale('serie');
+    startSerie();
     renderLaps();
   }
 
@@ -3904,17 +3981,16 @@ body { padding-bottom: 68px !important; }
     var html = '';
     for (var i = 0; i < currentLaps.length; i++) {
       var l = currentLaps[i];
-      var isFirst = i === 0;
       var hasRec = l.ms > 0 && l.color;
       html += '<div class="lap-row">' +
         '<div class="lap-dot" style="background:' + (hasRec ? l.color.dot : '#334') + '"></div>' +
-        '<span class="lap-num">S' + l.n + '</span>';
+        '<span class="lap-num">S' + l.n + '</span>' +
+        '<span class="lap-desc">serie <b style="color:#9ccfff">' + fmtMin(l.serieMs || 0) + '</b></span>';
       if (hasRec) {
-        html += '<span class="lap-desc">recupero</span>' +
-          '<span class="lap-time">' + fmtMin(l.ms) + '</span>' +
+        html += '<span class="lap-time">rec ' + fmtMin(l.ms) + '</span>' +
           '<span class="lap-badge" style="background:' + l.color.bg + ';color:' + l.color.fg + '">' + l.color.label + '</span>';
       } else {
-        html += '<span class="lap-desc" style="color:#445">in corso...</span>';
+        html += '<span class="lap-time" style="color:#445">recupero…</span>';
       }
       html += '</div>';
     }
@@ -4488,15 +4564,16 @@ body { padding-bottom: 68px !important; }
     const TAB1 = { 85: [3, 4, 4, 5, 6, 7, 7, 8, 9, 10, 10], 75: [4, 6, 7, 8, 9, 11, 12, 13, 14, 16, 17], 65: [6, 8, 9, 11, 13, 15, 16, 18, 20, 22, 23] };
     const TAB2 = { 4: [1, 2, 3], 5: [2, 3, 3], 6: [2, 3, 4], 7: [2, 4, 5], 8: [3, 4, 5], 9: [3, 5, 6], 10: [3, 5, 7], 11: [4, 6, 7], 12: [4, 6, 8], 13: [4, 7, 9], 14: [5, 7, 9], 15: [5, 8, 10] };
     const VOL = { 1: [6, 24, 30], 2: [9, 35, 44], 3: [9, 35, 44], 4: [11, 45, 56], 5: [11, 45, 56], 6: [14, 56, 70] };
+    const CRUISER_COL = { 1: 0, 2: 1, 3: 1, 4: 2, 5: 2, 6: 3 };
     const VOL_DELOAD = [3, 12, 15];
 
     const BATTLESHIP_VOL = {
-      1: { 1: [3, 27, 30], 2: [2, 42, 44], 3: [2, 42, 44], 4: [0, 56, 56], 5: [0, 56, 56], 6: [0, 70, 70] },
-      2: { 1: [6, 24, 30], 2: [5, 39, 44], 3: [5, 39, 44], 4: [3, 53, 56], 5: [3, 53, 56], 6: [1, 69, 70] },
-      3: { 1: [6, 24, 30], 2: [5, 39, 44], 3: [5, 39, 44], 4: [3, 53, 56], 5: [3, 53, 56], 6: [1, 69, 70] },
-      4: { 1: [8, 22, 30], 2: [7, 37, 44], 3: [7, 37, 44], 4: [4, 52, 56], 5: [4, 52, 56], 6: [4, 66, 70] },
-      5: { 1: [8, 22, 30], 2: [7, 37, 44], 3: [7, 37, 44], 4: [4, 52, 56], 5: [4, 52, 56], 6: [4, 66, 70] },
-      6: { 1: [11, 19, 30], 2: [10, 34, 44], 3: [10, 34, 44], 4: [8, 48, 56], 5: [8, 48, 56], 6: [7, 63, 70] }
+      1: { 1: [6, 21, 33], 2: [6, 34, 48], 3: [6, 34, 48], 4: [6, 44, 62], 5: [6, 44, 62], 6: [6, 57, 77] },
+      2: { 1: [9, 18, 33], 2: [9, 31, 48], 3: [9, 31, 48], 4: [9, 41, 62], 5: [9, 41, 62], 6: [9, 54, 77] },
+      3: { 1: [9, 18, 33], 2: [9, 31, 48], 3: [9, 31, 48], 4: [9, 41, 62], 5: [9, 41, 62], 6: [9, 54, 77] },
+      4: { 1: [11, 16, 33], 2: [11, 29, 48], 3: [11, 29, 48], 4: [11, 39, 62], 5: [11, 39, 62], 6: [11, 52, 77] },
+      5: { 1: [11, 16, 33], 2: [11, 29, 48], 3: [11, 29, 48], 4: [11, 39, 62], 5: [11, 39, 62], 6: [11, 52, 77] },
+      6: { 1: [14, 13, 33], 2: [14, 26, 48], 3: [14, 26, 48], 4: [14, 36, 62], 5: [14, 36, 62], 6: [14, 49, 77] }
     };
 
     function getLadder(rm) { return TAB2[Math.min(Math.max(rm, 4), 15)]; }
@@ -4766,10 +4843,14 @@ body { padding-bottom: 68px !important; }
     // ============================================================
     // GENERA EXCEL
     // ============================================================
-    function genCycle(prevLast) {
-      const seq = [1, 2, 3, 4, 5, 6];
-      for (let i = seq.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[seq[i], seq[j]] = [seq[j], seq[i]]; }
-      while (prevLast !== null && seq[0] === prevLast) { for (let i = seq.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[seq[i], seq[j]] = [seq[j], seq[i]]; } }
+    // Un dado a settimana, mai la stessa colonna (60/88/112/140) due settimane di fila.
+    function genDiceNoRepeatCol(weeks) {
+      const seq = [];
+      for (let w = 0; w < weeks; w++) {
+        let d;
+        do { d = 1 + Math.floor(Math.random() * 6); } while (w > 0 && CRUISER_COL[d] === CRUISER_COL[seq[w - 1]]);
+        seq.push(d);
+      }
       return seq;
     }
 
@@ -4786,10 +4867,13 @@ body { padding-bottom: 68px !important; }
       const tmpl = document.getElementById('templateSelect').value;
       const isBS = config.prog === 'battleship';
       const sessionKeys = Object.keys(SESSION_DEFS[tmpl]);
-      const c1 = genCycle(null), c2 = genCycle(c1[5]);
-      const diceSeq1 = [...c1, ...c2];
-      let diceSeq2 = null;
-      if (isBS) { const c3 = genCycle(null), c4 = genCycle(c3[5]); diceSeq2 = [...c3, ...c4]; }
+      let diceSeq1, diceSeq2 = null;
+      if (isBS) {
+        diceSeq1 = genDiceNoRepeatCol(12);
+        diceSeq2 = genDiceNoRepeatCol(12);
+      } else {
+        diceSeq1 = genDiceNoRepeatCol(12);
+      }
 
       // JSON INIT
       dashState = {
@@ -5497,13 +5581,17 @@ body { padding-bottom: 68px !important; }
       const volMap = { heavy: volArr[0], medium: volArr[1], light: volArr[2] };
       const intMap = { heavy: { cls: 'int-h', lbl: 'Heavy' }, medium: { cls: 'int-m', lbl: 'Medium' }, light: { cls: 'int-l', lbl: 'Light' } };
       const defs = SESSION_DEFS[dashState.template][dashSession];
+      const perLift = !isDeload && !isBS && dashState.diceBySchema;
 
-      let html = `<div style="text-align:center; margin-bottom:16px; color:#88aacc; font-size:0.95em;">Dado: <b style="color:#ff9944">${diceStr}</b> | H: <b>${volArr[0]}</b> - M: <b>${volArr[1]}</b> - L: <b>${volArr[2]}</b> rip</div>`;
+      let html = perLift
+        ? `<div style="text-align:center; margin-bottom:16px; color:#88aacc; font-size:0.95em;">Dado: <b style="color:#ff9944">per alzata</b> (volume diverso per esercizio)</div>`
+        : `<div style="text-align:center; margin-bottom:16px; color:#88aacc; font-size:0.95em;">Dado: <b style="color:#ff9944">${diceStr}</b> | H: <b>${volArr[0]}</b> - M: <b>${volArr[1]}</b> - L: <b>${volArr[2]}</b> rip</div>`;
 
       defs.forEach(([s, i], exIndex) => {
         const exConf = dashState.config[s];
         const { name, kg, rm } = getExInfo(exConf, i);
-        const ldr = getLadder(rm); const target = volMap[i];
+        const exVol = (perLift && dashState.diceBySchema[s]) ? VOL[dashState.diceBySchema[s][dashWeek - 1]] : volArr;
+        const ldr = getLadder(rm); const target = exVol[{ heavy: 0, medium: 1, light: 2 }[i]];
         const series = buildSeries(ldr, target); const total = series.reduce((a, b) => a + b, 0);
         const deloadTag = isDeload ? ' <span style="color:#88dd99;font-size:0.75em">[scarico]</span>' : '';
 
@@ -5522,7 +5610,7 @@ body { padding-bottom: 68px !important; }
         const savedNote = (dashState.notes && dashState.notes[noteKey]) ? dashState.notes[noteKey] : '';
         const noteInput = `<input type="text" class="dash-note-input" placeholder="Aggiungi note (es. 'oggi 5kg in meno', 'sentito pesante'...)" value="${savedNote}" onchange="saveDashNote(${dashWeek},'${dashSession}',${exIndex},this.value)">`;
 
-        html += `<div class="exercise-block"><div class="ex-header"><div><div class="ex-name">${name}${deloadTag}</div><div class="ex-meta">${kg} kg - Ladder: ${ldr.join(' - ')} - Target: ${target} rip</div></div><div style="display:flex; gap:8px; align-items:center;">${allDoneBtn}<span class="ex-intensity ${intMap[i].cls}">${intMap[i].lbl}</span></div></div><div class="series-grid">${badges}<div class="series-total">Totale: <span>${total}</span></div></div>${noteInput}</div>`;
+        html += `<div class="exercise-block"><div class="ex-header"><div><div class="ex-name">${name}${deloadTag}</div><div class="ex-meta">${kg} kg - Ladder: ${ldr.join(' - ')} - Target: ${target} rip${perLift ? ' <span style="color:#ff9944">(dado ' + ((dashState.diceBySchema[s] || [])[dashWeek - 1] || '?') + ')</span>' : ''}</div></div><div style="display:flex; gap:8px; align-items:center;">${allDoneBtn}<span class="ex-intensity ${intMap[i].cls}">${intMap[i].lbl}</span></div></div><div class="series-grid">${badges}<div class="series-total">Totale: <span>${total}</span></div></div>${noteInput}</div>`;
       });
 
       container.innerHTML = html;
@@ -5912,6 +6000,7 @@ body { padding-bottom: 68px !important; }
               let volArr;
               if (isDeload) volArr = VOL_DELOAD;
               else if (dashState.prog === 'battleship') volArr = BATTLESHIP_VOL[dashState.diceSeq1[w-1]][dashState.diceSeq2[w-1]];
+              else if (dashState.diceBySchema && dashState.diceBySchema[s]) volArr = VOL[dashState.diceBySchema[s][w-1]];
               else volArr = VOL[dashState.diceSeq1[w-1]];
               const volMap = { heavy: volArr[0], medium: volArr[1], light: volArr[2] };
               const exConf = dashState.config[s];
@@ -6412,6 +6501,7 @@ body { padding-bottom: 68px !important; }
   var sessionStart = null, sessionInterval = null, sessionRunning = false, sessionOffset = 0;
   var exStart = null, exInterval = null, exRunning = false;
   var recStart = null, recInterval = null;
+  var serieStart = null, serieInterval = null;
   var lapStart = null;
   var currentLaps = [];
   var exercises = [];
@@ -6467,9 +6557,10 @@ body { padding-bottom: 68px !important; }
     clearInterval(sessionInterval);
     clearInterval(exInterval);
     clearInterval(recInterval);
+    clearInterval(serieInterval);
     sessionRunning = false; exRunning = false;
     sessionStart = null; sessionOffset = 0;
-    exStart = null; recStart = null; lapStart = null;
+    exStart = null; recStart = null; lapStart = null; serieStart = null;
     serieCount = 0; currentLaps = [];
     var bS = document.getElementById('btnSession');
     bS.disabled = false;
@@ -6485,6 +6576,9 @@ body { padding-bottom: 68px !important; }
     document.getElementById('recBox').classList.remove('visible');
     document.getElementById('exDot').className = 'dot dot-off';
     document.getElementById('exTime').textContent = '0:00';
+    document.getElementById('serieBox').classList.remove('visible');
+    document.getElementById('serieTime').textContent = '0:00';
+    document.getElementById('serieTime').className = 'serie-time';
     document.getElementById('sessionTime').textContent = '0:00:00';
     document.getElementById('lapsList').innerHTML = '<div class="empty-msg">Avvia l\'esercizio e segna le serie</div>';
   }
@@ -6529,6 +6623,7 @@ body { padding-bottom: 68px !important; }
     document.getElementById('btnFineEx').classList.remove('hidden');
     setCentrale('serie');
     renderLaps();
+    startSerie();
     exInterval = setInterval(function() {
       document.getElementById('exTime').textContent = fmtMin(Date.now() - exStart);
     }, 500);
@@ -6550,6 +6645,7 @@ body { padding-bottom: 68px !important; }
     clearInterval(recInterval);
     saveEx();
     exRunning = false;
+    hideSerie();
     document.getElementById('recBox').classList.remove('visible');
     document.getElementById('btnEx').textContent = 'Avvia esercizio';
     document.getElementById('btnEx').className = 'blue';
@@ -6582,11 +6678,44 @@ body { padding-bottom: 68px !important; }
     }
   });
 
+  function startSerie() {
+    serieStart = Date.now();
+    clearInterval(serieInterval);
+    var t = document.getElementById('serieTime');
+    t.textContent = '0:00';
+    t.className = 'serie-time';
+    document.getElementById('serieBox').classList.add('visible');
+    serieInterval = setInterval(function() {
+      document.getElementById('serieTime').textContent = fmtMin(Date.now() - serieStart);
+    }, 500);
+  }
+
+  function stopSerie() {
+    clearInterval(serieInterval);
+    if (serieStart) {
+      document.getElementById('serieTime').textContent = fmtMin(Date.now() - serieStart);
+    }
+    document.getElementById('serieTime').className = 'serie-time frozen';
+    serieStart = null;
+  }
+
+  function hideSerie() {
+    clearInterval(serieInterval);
+    serieStart = null;
+    var box = document.getElementById('serieBox');
+    box.classList.remove('visible');
+    var t = document.getElementById('serieTime');
+    t.textContent = '0:00';
+    t.className = 'serie-time';
+  }
+
   function fineSerie() {
     if (!exRunning) return;
     unlockAudio();
+    var serieMs = serieStart ? Date.now() - serieStart : 0;
+    stopSerie();
     serieCount++;
-    currentLaps.push({ n: serieCount, ms: 0, color: null });
+    currentLaps.push({ n: serieCount, serieMs: serieMs, ms: 0, color: null });
     lapStart = Date.now();
     // avvia timer recupero
     recStart = Date.now();
@@ -6624,6 +6753,7 @@ body { padding-bottom: 68px !important; }
     document.getElementById('recBox').classList.remove('visible');
     document.getElementById('exDot').className = 'dot dot-off';
     setCentrale('serie');
+    startSerie();
     renderLaps();
   }
 
@@ -6636,17 +6766,16 @@ body { padding-bottom: 68px !important; }
     var html = '';
     for (var i = 0; i < currentLaps.length; i++) {
       var l = currentLaps[i];
-      var isFirst = i === 0;
       var hasRec = l.ms > 0 && l.color;
       html += '<div class="lap-row">' +
         '<div class="lap-dot" style="background:' + (hasRec ? l.color.dot : '#334') + '"></div>' +
-        '<span class="lap-num">S' + l.n + '</span>';
+        '<span class="lap-num">S' + l.n + '</span>' +
+        '<span class="lap-desc">serie <b style="color:#9ccfff">' + fmtMin(l.serieMs || 0) + '</b></span>';
       if (hasRec) {
-        html += '<span class="lap-desc">recupero</span>' +
-          '<span class="lap-time">' + fmtMin(l.ms) + '</span>' +
+        html += '<span class="lap-time">rec ' + fmtMin(l.ms) + '</span>' +
           '<span class="lap-badge" style="background:' + l.color.bg + ';color:' + l.color.fg + '">' + l.color.label + '</span>';
       } else {
-        html += '<span class="lap-desc" style="color:#445">in corso...</span>';
+        html += '<span class="lap-time" style="color:#445">recupero…</span>';
       }
       html += '</div>';
     }
@@ -6732,6 +6861,8 @@ body { padding-bottom: 68px !important; }
 (function() {
   document.getElementById('tab-iron').addEventListener('click', function() { switchTab('iron'); });
   document.getElementById('tab-timer').addEventListener('click', function() { switchTab('timer'); });
+  var grt = document.getElementById('global-rest-timer');
+  if (grt) grt.addEventListener('click', function() { switchTab('timer'); });
 })();
 
 function switchTab(tab) {
