@@ -673,6 +673,26 @@
       color: #88dd99;
     }
 
+    .pr-pill {
+      font-size: 0.72em;
+      font-weight: bold;
+      padding: 3px 9px;
+      border-radius: 18px;
+      white-space: nowrap;
+    }
+    .pr-real {
+      background: #7b5e00;
+      color: #ffd873;
+      border: 1px solid #b98b00;
+      cursor: pointer;
+    }
+    .pr-unset {
+      background: transparent;
+      color: #7a8390;
+      border: 1px dashed #556;
+      cursor: pointer;
+    }
+
     .series-grid {
       padding: 12px 14px;
       display: flex;
@@ -2854,7 +2874,7 @@ body { padding-bottom: 68px !important; }
         const savedNote = (dashState.notes && dashState.notes[noteKey]) ? dashState.notes[noteKey] : '';
         const noteInput = `<input type="text" class="dash-note-input" placeholder="Aggiungi note (es. 'oggi 5kg in meno', 'sentito pesante'...)" value="${savedNote}" onchange="saveDashNote(${dashWeek},'${dashSession}',${exIndex},this.value)">`;
 
-        html += `<div class="exercise-block"><div class="ex-header"><div><div class="ex-name">${name}${deloadTag}</div><div class="ex-meta">${kg} kg - Ladder: ${ldr.join(' - ')} - Target: ${target} rip${perLift ? ' <span style="color:#ff9944">(dado ' + ((dashState.diceBySchema[s] || [])[dashWeek - 1] || '?') + ')</span>' : ''}</div></div><div style="display:flex; gap:8px; align-items:center;">${allDoneBtn}<span class="ex-intensity ${intMap[i].cls}">${intMap[i].lbl}</span></div></div><div class="series-grid">${badges}<div class="series-total">Totale: <span>${total}</span></div></div>${noteInput}</div>`;
+        html += `<div class="exercise-block"><div class="ex-header"><div><div class="ex-name">${name}${deloadTag}</div><div class="ex-meta">${kg} kg - Ladder: ${ldr.join(' - ')} - Target: ${target} rip${perLift ? ' <span style="color:#ff9944">(dado ' + ((dashState.diceBySchema[s] || [])[dashWeek - 1] || '?') + ')</span>' : ''}</div></div><div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">${(function(){var v=(dashState.realKg&&dashState.realKg[s+'_'+i]!=null)?dashState.realKg[s+'_'+i]:'';var set=(v!==''&&v!=null);return '<span class="pr-pill '+(set?'pr-real':'pr-unset')+'" onclick="setRealKg(\''+s+'\',\''+i+'\')">'+(set?('PR '+v+' kg'):'+ PR')+'</span>';})()}${allDoneBtn}<span class="ex-intensity ${intMap[i].cls}">${intMap[i].lbl}</span></div></div><div class="series-grid">${badges}<div class="series-total">Totale: <span>${total}</span></div></div>${noteInput}</div>`;
       });
 
       container.innerHTML = html;
@@ -3113,6 +3133,19 @@ body { padding-bottom: 68px !important; }
       if (!dashState.notes) dashState.notes = {};
       dashState.notes[`${w}_${s}_${ex}`] = val;
       localStorage.setItem('active_dashboard', JSON.stringify(dashState));
+    }
+
+    function setRealKg(schema, intensity) {
+      if (!dashState.realKg) dashState.realKg = {};
+      const key = schema + '_' + intensity;
+      const cur = dashState.realKg[key] != null ? dashState.realKg[key] : '';
+      const val = prompt('Peso reale (kg). Vale per questo esercizio a questa intensità fino a fine programma. Vuoto = azzera.', cur);
+      if (val === null) return;
+      const t = ('' + val).trim();
+      if (t === '') delete dashState.realKg[key];
+      else dashState.realKg[key] = t;
+      localStorage.setItem('active_dashboard', JSON.stringify(dashState));
+      renderDashboardContent();
     }
 
     function renderDashboardContentTriple() {
@@ -5610,7 +5643,7 @@ body { padding-bottom: 68px !important; }
         const savedNote = (dashState.notes && dashState.notes[noteKey]) ? dashState.notes[noteKey] : '';
         const noteInput = `<input type="text" class="dash-note-input" placeholder="Aggiungi note (es. 'oggi 5kg in meno', 'sentito pesante'...)" value="${savedNote}" onchange="saveDashNote(${dashWeek},'${dashSession}',${exIndex},this.value)">`;
 
-        html += `<div class="exercise-block"><div class="ex-header"><div><div class="ex-name">${name}${deloadTag}</div><div class="ex-meta">${kg} kg - Ladder: ${ldr.join(' - ')} - Target: ${target} rip${perLift ? ' <span style="color:#ff9944">(dado ' + ((dashState.diceBySchema[s] || [])[dashWeek - 1] || '?') + ')</span>' : ''}</div></div><div style="display:flex; gap:8px; align-items:center;">${allDoneBtn}<span class="ex-intensity ${intMap[i].cls}">${intMap[i].lbl}</span></div></div><div class="series-grid">${badges}<div class="series-total">Totale: <span>${total}</span></div></div>${noteInput}</div>`;
+        html += `<div class="exercise-block"><div class="ex-header"><div><div class="ex-name">${name}${deloadTag}</div><div class="ex-meta">${kg} kg - Ladder: ${ldr.join(' - ')} - Target: ${target} rip${perLift ? ' <span style="color:#ff9944">(dado ' + ((dashState.diceBySchema[s] || [])[dashWeek - 1] || '?') + ')</span>' : ''}</div></div><div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">${(function(){var v=(dashState.realKg&&dashState.realKg[s+'_'+i]!=null)?dashState.realKg[s+'_'+i]:'';var set=(v!==''&&v!=null);return '<span class="pr-pill '+(set?'pr-real':'pr-unset')+'" onclick="setRealKg(\''+s+'\',\''+i+'\')">'+(set?('PR '+v+' kg'):'+ PR')+'</span>';})()}${allDoneBtn}<span class="ex-intensity ${intMap[i].cls}">${intMap[i].lbl}</span></div></div><div class="series-grid">${badges}<div class="series-total">Totale: <span>${total}</span></div></div>${noteInput}</div>`;
       });
 
       container.innerHTML = html;
@@ -5869,6 +5902,19 @@ body { padding-bottom: 68px !important; }
       if (!dashState.notes) dashState.notes = {};
       dashState.notes[`${w}_${s}_${ex}`] = val;
       localStorage.setItem('active_dashboard', JSON.stringify(dashState));
+    }
+
+    function setRealKg(schema, intensity) {
+      if (!dashState.realKg) dashState.realKg = {};
+      const key = schema + '_' + intensity;
+      const cur = dashState.realKg[key] != null ? dashState.realKg[key] : '';
+      const val = prompt('Peso reale (kg). Vale per questo esercizio a questa intensità fino a fine programma. Vuoto = azzera.', cur);
+      if (val === null) return;
+      const t = ('' + val).trim();
+      if (t === '') delete dashState.realKg[key];
+      else dashState.realKg[key] = t;
+      localStorage.setItem('active_dashboard', JSON.stringify(dashState));
+      renderDashboardContent();
     }
 
     function renderDashboardContentTriple() {
